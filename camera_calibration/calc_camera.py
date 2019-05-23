@@ -4,9 +4,9 @@ import os
 import pickle
 
 
-def calculate_params(img_paths, img_size, save_dir):
-    objp = np.zeros((6*9,3), np.float32)
-    objp[:,:2] = np.mgrid[0:9, 0:6].T.reshape(-1,2)
+def calculate_params(img_paths, img_size, save_dir, checkboard_size):
+    objp = np.zeros((checkboard_size[1]*checkboard_size[0],3), np.float32)
+    objp[:,:2] = np.mgrid[0:checkboard_size[0], 0:checkboard_size[1]].T.reshape(-1,2)
     objpoints = []
     imgpoints = []
 
@@ -15,7 +15,7 @@ def calculate_params(img_paths, img_size, save_dir):
         img = cv2.imread(img_path)
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
-        ret, corners = cv2.findChessboardCorners(gray, (9,6), None)
+        ret, corners = cv2.findChessboardCorners(gray, checkboard_size, None)
 
         if ret == True:
             objpoints.append(objp)
@@ -34,4 +34,5 @@ if __name__ == "__main__":
     img_paths = [img_dir + x for x in os.listdir(img_dir)]
     img_size = (1280, 960)
     save_dir = "../data/camera.conf"
-    calculate_params(img_paths, img_size, save_dir)
+    checkboard_size = (9,6)
+    calculate_params(img_paths, img_size, save_dir, checkboard_size)
