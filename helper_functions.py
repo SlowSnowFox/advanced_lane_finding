@@ -30,3 +30,8 @@ def dir_threshold(image, sobel_kernel=3, thresh=(0, np.pi/2)):
     binary = np.zeros_like(dir_sobel)
     binary[(dir_sobel >= thresh[0]) & (dir_sobel <= thresh[1])] = 1
     return dir_binary
+
+gradx = abs_sobel_thresh(image, orient='x', sobel_kernel=ksize, thresh=(0, 255))
+grady = abs_sobel_thresh(image, orient='y', sobel_kernel=ksize, thresh=(0, 255))
+mag_binary = mag_thresh(image, sobel_kernel=ksize, mag_thresh=(0, 255))
+dir_binary = dir_threshold(image, sobel_kernel=ksize, thresh=(0, np.pi/2))

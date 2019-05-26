@@ -4,54 +4,23 @@ import numpy as np
 from collections import deque
 import cv2
 from helper_functions import *
-
-
-class Lane:
-    pass
-
-class ColorFilter:
-    pass
-
-class GradientFilter:
-    pass
-
-class LaneTracer:
-
-    def __init__(self, cam_conf_path, color_filter, gradient_filter, roi):
-        cc = pickle.load(open(cam_conf_path, "rb"))
-        self.dist = cc['dist']
-        self.mtx = cc['mtx']
-        self.color_filter = color_filter
-        self.gradient_filter = gradient_filter
-        self.roi = roi
-
-    def find_lanes(self, img):
-        u_img = cv2.undistort(img, self.mtx, self.dist, None, self.mtx)
-        return u_img
-
-    def draw_lanes(self, left_lane, right_lane):
-        pass
-
-    def next_frame(self, img):
-        find_lanes(img)
-
-
-
-
-
+from filter_classes import *
 
 
 if __name__ == "__main__":
     cv2.namedWindow("blub")
+    cap = cv2.VideoCapture(video_path)
+    ret, or_img = cap.read()
 
     cam_conf_path = "../data/camera.conf"
     video_path = "../data/project_video.mp4"
-    color_filter = None
-    gradient_filter = None
-    roi = None
-    lt = LaneTracer(cam_conf_path, None, None, None)
-    cap = cv2.VideoCapture(video_path)
-    ret, or_img = cap.read()
+    src_points = np.float32([[562, 479], [284, 682],[1083,682] ,[757,479]])
+    dst_points = np.float32([[300, 0], [300,or_img.shape[1]], [900, or_img.shape[1]], [900, 0]])
+    color_filter = ColorFilter((0, 180), (0,255), (0,255))
+    gradient_filter = GradientFilter()
+    cam_adj = CamerAdjuster(cam_conf_path)
+    perpserctive_adj = PerspectiveAdjuster(src_points, dst_points)
+    lt = LaneTracer(cam_adj, color_filter, gradient_filter, perpserctive_adj)
 
     while True:
         k = cv2.waitKey(1) & 0xFF # (ESC)
