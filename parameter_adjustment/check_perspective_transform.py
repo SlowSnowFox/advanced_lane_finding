@@ -1,7 +1,9 @@
 import numpy as np
 import cv2
-from filter_classes import *
+import sys
+sys.path.insert(0, '../pipeline')
 
+from filter_classes import *
 
 img = cv2.imread("../data/test_images/test1.jpg")
 # src_points = np.float32([[682,284], [479,562], [479, 757], [682, 1083]])

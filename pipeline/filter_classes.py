@@ -2,15 +2,16 @@ import cv2
 import numpy as np
 import pickle
 
+
 class Lane:
     pass
 
 
 class ColorFilter:
 
-    def __init__(self, h_bounds, s_bounds, l_bounds):
-        self.lower_bounds = np.array([x[0] for x in [h_bounds, s_bounds, l_bounds]])
-        self.upper_bounds = np.array([x[1] for x in [h_bounds, s_bounds, l_bounds]])
+    def __init__(self, lower_bounds, upper_bounds):
+        self.lower_bounds = lower_bounds
+        self.upper_bounds = upper_bounds
 
     def apply(self, img):
         c_img = cv2.cvtColor(img, cv2.COLOR_BGR2HLS)
@@ -43,9 +44,9 @@ class GradientFilter:
         sobelx = np.absolute(cv2.Sobel(img, cv2.CV_64F, 1, 0, ksize=self.sobel_kernel))
         sobely = np.absolute(cv2.Sobel(img, cv2.CV_64F, 0, 1, ksize=self.sobel_kernel))
         dir_sobel = np.arctan2(sobely, sobelx)
-        binary = np.zeros_like(dir_sobel)
+        binary = np.zeros_like(np.uint8(dir_sobel))
         binary[(dir_sobel >= self.dir_threshold[0]) & (dir_sobel <= self.dir_threshold[1])] = 1
-        return dir_binary
+        return binary
 
 
 class CamerAdjuster:

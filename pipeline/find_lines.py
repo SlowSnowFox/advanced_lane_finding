@@ -16,7 +16,7 @@ if __name__ == "__main__":
 
     src_points = np.float32([[562, 479], [284, 682],[1083,682] ,[757,479]])
     dst_points = np.float32([[300, 0], [300,or_img.shape[1]], [900, or_img.shape[1]], [900, 0]])
-    color_filter = ColorFilter((0, 180), (0,255), (0,255))
+    color_filter = ColorFilter((0, 180), (15,255), (155,255))
     gradient_filter = GradientFilter()
     cam_adj = CamerAdjuster(cam_conf_path)
     perpserctive_adj = PerspectiveAdjuster(src_points, dst_points)

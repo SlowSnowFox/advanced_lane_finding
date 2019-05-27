@@ -13,7 +13,7 @@ def abs_sobel_thresh(img, orient='x', sobel_kernel=3, thresh=(0, 255)):
     return binary
 
 
-def mag_thresh(image, sobel_kernel=3, mag_thresh=(0, 255)):
+def mag_thresh(img, sobel_kernel=3, mag_thresh=(0, 255)):
     sobelx = cv2.Sobel(img, cv2.CV_64F, 0, 1)
     sobely = cv2.Sobel(img, cv2.CV_64F, 1, 0)
     mag = np.sqrt(np.square(sobelx) + np.square(sobely))
@@ -23,7 +23,7 @@ def mag_thresh(image, sobel_kernel=3, mag_thresh=(0, 255)):
     return binary
 
 
-def dir_threshold(image, sobel_kernel=3, thresh=(0, np.pi/2)):
+def dir_threshold(img, sobel_kernel=3, thresh=(0, np.pi/2)):
     sobelx = np.absolute(cv2.Sobel(img, cv2.CV_64F, 1, 0, ksize=sobel_kernel))
     sobely = np.absolute(cv2.Sobel(img, cv2.CV_64F, 0, 1, ksize=sobel_kernel))
     dir_sobel = np.arctan2(sobely, sobelx)
