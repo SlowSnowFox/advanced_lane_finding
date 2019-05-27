@@ -1,6 +1,6 @@
 import cv2
 import numpy as np
-
+import pickle
 
 class Lane:
     pass
@@ -9,12 +9,12 @@ class Lane:
 class ColorFilter:
 
     def __init__(self, h_bounds, s_bounds, l_bounds):
-        self.lower_bounds = [x[0] for x in [h_bounds, s_bounds, l_bounds]]
-        self.upper_bounds = [x[1] for x in [h_bounds, s_bounds, l_bounds]]
+        self.lower_bounds = np.array([x[0] for x in [h_bounds, s_bounds, l_bounds]])
+        self.upper_bounds = np.array([x[1] for x in [h_bounds, s_bounds, l_bounds]])
 
     def apply(self, img):
         c_img = cv2.cvtColor(img, cv2.COLOR_BGR2HLS)
-        r_img = cv2.inRange(r_img, self.lower_bounds, self.upper_bounds)
+        r_img = cv2.inRange(c_img, self.lower_bounds, self.upper_bounds)
         return r_img
 
 
@@ -22,12 +22,13 @@ class GradientFilter:
 
     def __init__(self, magnitude_threshold=(0, 255), dir_threshold=(0, np.pi/2), sobel_kernel=3):
         self.magnitude_threshold = magnitude_threshold
-        self.dir_threshold = dir_thresholds
+        self.dir_threshold = dir_threshold
         self.sobel_kernel = sobel_kernel
 
     def apply(self, img):
-        pass
-
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        adj_img = self._apply_mag_thresh(img)
+        return adj_img
 
     def _apply_mag_thresh(self, img):
         sobelx = cv2.Sobel(img, cv2.CV_64F, 0, 1)
@@ -53,9 +54,6 @@ class CamerAdjuster:
         cc = pickle.load(open(config_path, "rb"))
         self.dist = cc['dist']
         self.mtx = cc['mtx']
-        self.color_filter = color_filter
-        self.gradient_filter = gradient_filter
-        self.roi = roi
 
     def apply(self, img):
         return cv2.undistort(img, self.mtx, self.dist, None, self.mtx)
@@ -68,7 +66,7 @@ class PerspectiveAdjuster:
         self.t_minv = cv2.getPerspectiveTransform(dst_points, src_points)
 
     def apply(self, img):
-        view_adj_img = cv2.warpPerspective(img, self.t_m, img.shape, flags=cv2.INTER_LINEAR)
+        view_adj_img = cv2.warpPerspective(img, self.t_m, (img.shape[1], img.shape[0]), flags=cv2.INTER_LINEAR)
         return view_adj_img
 
 
