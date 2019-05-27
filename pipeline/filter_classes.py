@@ -21,12 +21,14 @@ class ColorFilter:
 
 class GradientFilter:
 
-    def __init__(self, magnitude_threshold=(0, 255), dir_threshold=(0, np.pi/2), sobel_kernel=3):
+    def __init__(self,abs_threshold, magnitude_threshold=(0, 255), dir_threshold=(0, np.pi/2), sobel_kernel=3):
+        self.abs_threshold = abs_threshold
         self.magnitude_threshold = magnitude_threshold
         self.dir_threshold = dir_threshold
         self.sobel_kernel = sobel_kernel
 
     def apply(self, img):
+        #TODO needs to parse dict from abstreshold for x and y orient
         img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         adj_img = self._apply_mag_thresh(img)
         return adj_img
@@ -46,6 +48,16 @@ class GradientFilter:
         dir_sobel = np.arctan2(sobely, sobelx)
         binary = np.zeros_like(np.uint8(dir_sobel))
         binary[(dir_sobel >= self.dir_threshold[0]) & (dir_sobel <= self.dir_threshold[1])] = 1
+        return binary
+
+    def _apply_abs_thresh(self, img, thresh, orient='x'):
+        gradient = [1,0]
+        if orient == "y":
+            gradient = [0, 1]
+        sobel = np.absolute(cv2.Sobel(img, cv2.CV_64F, *gradient, ksize=self.sobel_kernel))
+        sobel = np.uint8(255*sobel/np.max(sobel))
+        binary = np.zeros_like(sobel)
+        binary[(sobel >= thresh[0]) & (sobel <= thresh[1])] = 1
         return binary
 
 
