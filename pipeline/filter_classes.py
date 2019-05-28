@@ -1,6 +1,7 @@
 import cv2
 import numpy as np
 import pickle
+import matplotlib.pyplot as plt
 
 
 class Lane:
@@ -94,13 +95,43 @@ class PerspectiveAdjuster:
         return view_adj_img
 
 
+class LaneSeparator:
+
+    def __init__(self, slices=4):
+        self.slices = slices
+
+    def create_hist(self, img, slice_nr=0):
+        start_i = int(img.shape[0]/self.slices * slice_nr)
+        end_i = int(img.shape[0]/self.slices * (slice_nr + 1))
+        img_slice = img[start_i:end_i,:]
+        hist = np.sum(img_slice, axis=0)
+        return hist
+
+    def create_lanes(self, img):
+        return img
+
+    def calculate_curvature(self, img):
+        return img
+
+    def create_hist_img(self, img, slice_nr):
+        hist = self.create_hist(img, slice_nr)
+        fig = plt.figure()
+        fig.add_subplot(111)
+        hist_fig = plt.plot(hist)
+        hist_fig.canvas.draw()
+        np_image = np.fromstring(hist_fig.canvas.tostring_rgb(), dtype=np.uint8, sep='')
+        np_image = np_image.reshape(hist_fig.canvas.get_width_height()[::-1] + (3,))
+        return np_image
+
+
 class LaneTracer:
 
-    def __init__(self, cam_adj, color_filter, gradient_filter, perspective_adj):
+    def __init__(self, cam_adj, color_filter, gradient_filter, perspective_adj, lane_separator):
         self.cam_adj = cam_adj
         self.color_filter = color_filter
         self.gradient_filter = gradient_filter
         self.perspective_adj = perspective_adj
+        self.lane_separator = lane_separator
 
     def trace_lanes(self, img):
 
@@ -111,7 +142,7 @@ class LaneTracer:
         hsl_mask = self.color_filter.apply(img)
         canny_mask = self.gradient_filter.apply(img)
         comb_mask = hsl_mask | canny_mask
-        view_adj = self.perspective_adj.apply(img)
+        view_adj = self.perspective_adj.apply(comb_mask)
         return view_adj
 
 
