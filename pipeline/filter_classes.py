@@ -97,8 +97,9 @@ class PerspectiveAdjuster:
 
 class LaneSeparator:
 
-    def __init__(self, slices=4):
+    def __init__(self, slices=4, screen_dpi=96):
         self.slices = slices
+        self.screen_dpi = screen_dpi # needed for drawing the histogram in opencv
 
     def create_hist(self, img, slice_nr=0):
         start_i = int(img.shape[0]/self.slices * slice_nr)
@@ -115,9 +116,9 @@ class LaneSeparator:
 
     def create_hist_img(self, img, slice_nr):
         hist = self.create_hist(img, slice_nr)
-        fig = plt.figure()
-        fig.add_subplot(111)
-        hist_fig = plt.plot(hist)
+        hist_fig = plt.figure(figsize=(1280/self.screen_dpi, 720/self.screen_dpi), dpi=self.screen_dpi)
+        ax = hist_fig.add_subplot(111)
+        ax.plot(hist)
         hist_fig.canvas.draw()
         np_image = np.fromstring(hist_fig.canvas.tostring_rgb(), dtype=np.uint8, sep='')
         np_image = np_image.reshape(hist_fig.canvas.get_width_height()[::-1] + (3,))
@@ -126,9 +127,9 @@ class LaneSeparator:
 
 class LaneTracer:
 
-    def __init__(self, cam_adj, color_filter, gradient_filter, perspective_adj, lane_separator):
+    def __init__(self, cam_adj, color_filters, gradient_filter, perspective_adj, lane_separator):
         self.cam_adj = cam_adj
-        self.color_filter = color_filter
+        self.color_filters = color_filters
         self.gradient_filter = gradient_filter
         self.perspective_adj = perspective_adj
         self.lane_separator = lane_separator
@@ -139,8 +140,9 @@ class LaneTracer:
 
     def detect_lanes(self, img):
         img = self.cam_adj.apply(img)
-        hsl_mask = self.color_filter.apply(img)
         canny_mask = self.gradient_filter.apply(img)
+        hsl_masks = np.array([filter.apply(img) for filter in self.color_filters])
+        hsl_mask = np.amax(hsl_masks, axis=0)
         comb_mask = hsl_mask | canny_mask
         view_adj = self.perspective_adj.apply(comb_mask)
         return view_adj

@@ -29,5 +29,7 @@ while True:
     lt_yellow = ColorFilter(hsl_yellow_l, hsl_yellow_u)
     adj_img_white = lt_white.apply(img)
     adj_img_yellow = lt_yellow.apply(img)
-    final_img = combine_images(img, img , adj_img_white, adj_img_yellow)
+    comb = np.array([adj_img_white, adj_img_yellow])
+    comb = np.amax(comb, axis=0)
+    final_img = combine_images(img, comb, adj_img_white, adj_img_yellow)
     cv2.imshow(window_name, final_img)

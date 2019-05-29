@@ -19,15 +19,18 @@ if __name__ == "__main__":
     mag_values = [10, 30]
     dir_values = [0.4*np.pi/2, 0.65*np.pi/2]
     abs_values = {"x":[5, 15], "y":[5, 31]}
-    hsl_lower_bounds = np.array([20, 35,155])
-    hsl_upper_bounds = np.array([180, 255, 255])
-
-    color_filter = ColorFilter(hsl_lower_bounds, hsl_upper_bounds)
+    hsl_lower_bounds_y = np.array([20, 35,155])
+    hsl_upper_bounds_y = np.array([180, 255, 255])
+    hsl_lower_bounds_w = np.array([0, 0,155])
+    hsl_upper_bounds_w = np.array([180, 255, 255])
+    color_filter_white = ColorFilter(hsl_lower_bounds_w, hsl_upper_bounds_w)
+    color_filter_yellow = ColorFilter(hsl_lower_bounds_y, hsl_upper_bounds_y)
+    color_filters = [color_filter_white, color_filter_yellow]
     gradient_filter = GradientFilter(abs_values, mag_values, dir_values)
     cam_adj = CamerAdjuster(cam_conf_path)
     perpserctive_adj = PerspectiveAdjuster(src_points, dst_points)
-    lane_sep = LaneSeparator()
-    lt = LaneTracer(cam_adj, color_filter, gradient_filter, perpserctive_adj, lane_sep)
+    lane_sep = LaneSeparator(4)
+    lt = LaneTracer(cam_adj, color_filters, gradient_filter, perpserctive_adj, lane_sep)
 
     while True:
         k = cv2.waitKey(1) & 0xFF # (ESC)
@@ -35,9 +38,10 @@ if __name__ == "__main__":
             break
         elif k == 110: # (n)
             ret, or_img = cap.read()
+        elif k == 115: # (s)
+            cv2.imwrite("../data/sample_step_outputs/b_trans.jpg", mod_img)
+
         lane_mask = lt.detect_lanes(or_img)
-        
-        comb_img = combine_images(mod_img, mod_img, or_img, or_img)
-        if k == 115: # (s)
-            cv2.imwrite("../data/sample_step_outputs/b_trans.jpg",mod_img)
+        hist = lane_sep.create_hist_img(lane_mask, 1)
+        comb_img = combine_images(or_img, lane_mask, hist, or_img)
         cv2.imshow("blub", comb_img)
