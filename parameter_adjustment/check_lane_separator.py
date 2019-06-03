@@ -16,5 +16,6 @@ while True:
     k = cv2.waitKey(1) & 0xFF # (ESC)
     if k == 27:
         break
-    hist = ls.create_hist_img(img, slice_nr=0)
+    hist = ls.create_hist(img, slice_nr=0)
+    conv_size = 1
     cv2.imshow("blub", hist)
