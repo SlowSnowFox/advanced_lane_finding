@@ -43,7 +43,7 @@ if __name__ == "__main__":
 
         lane_mask = lt.detect_lanes(or_img)
         final_mask = np.dstack([lane_mask, lane_mask, lane_mask])
-        lr, lf = lane_sep.create_lanes(lane_mask)
+        lf, lr = lane_sep.create_lanes(lane_mask)
         lr.draw(final_mask)
         lf.draw(final_mask)
         persp_img = perpserctive_adj.apply(or_img)

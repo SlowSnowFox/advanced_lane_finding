@@ -23,11 +23,16 @@ class Lane:
             (box[2], box[3]),(0,255,0), 2)
 
     def _draw_polynomial(self, img):
-        plotx = np.linspace(0, img.shape[0]-1, img.shape[0])
+        plotx = np.linspace(0, img.shape[1]-1, img.shape[1])
+        min_x_box, max_x_box = min([x[0] for x in self.boxes]), max([x[2] for x in self.boxes])
+        plotx = plotx[(plotx > min_x_box) & (plotx < max_x_box)]
         ploty = self.polynomial[0]*plotx**2 + self.polynomial[1]*plotx + self.polynomial[2]
         ploty = ploty.astype(int)
         plotx = plotx.astype(int)
-        img[plotx, ploty] = [255, 255, 255]
+        out_of_bounds = [i for i, y in enumerate(ploty) if (y >= img.shape[0]) or (y < 0.0)]
+        plotx = np.delete(plotx, out_of_bounds)
+        ploty = np.delete(ploty, out_of_bounds)
+        img[ploty, plotx] = [255, 255, 255]
 
     def draw(self, img):
         self._draw_pixels(img)
@@ -157,8 +162,8 @@ class LaneSeparator:
         nonzeroy = np.array(nonzero[0])
         nonzerox = np.array(nonzero[1])
         # Current positions to be updated later for each window in nwindows
-        leftx_current = init_l_base
         rightx_current = init_r_base
+        leftx_current = init_l_base
         boxes_left = []
         boxes_right = []
         for slice in range(self.slices):
@@ -189,16 +194,17 @@ class LaneSeparator:
 
         left_lane_inds = np.concatenate(left_lane_inds)
         right_lane_inds = np.concatenate(right_lane_inds)
-
         leftx = nonzerox[left_lane_inds]
         lefty = nonzeroy[left_lane_inds]
         rightx = nonzerox[right_lane_inds]
         righty = nonzeroy[right_lane_inds]
 
         try:
-            left_fit = np.polyfit(lefty, leftx, 2)
-            right_fit = np.polyfit(righty, rightx, 2)
+            left_fit = np.polyfit(leftx, lefty, 2)
+            right_fit = np.polyfit(rightx, righty, 2)
         except:
+            # TODO Catch error and create an exception
+
             pass
         return Lane(left_fit, boxes_left, [lefty, leftx], color="red"), Lane(right_fit, boxes_right, [righty, rightx])
 
