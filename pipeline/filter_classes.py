@@ -6,13 +6,31 @@ import matplotlib.pyplot as plt
 
 class Lane:
 
-    def __init__(self, polynomial, boxes, pixels, color="blue"):
+    def __init__(self, polynomial, boxes, pixels, color="blue", img_size=(720, 1280)):
         self.polynomial = polynomial
         self.boxes = boxes
         self.pixels = pixels
         self.color = [255, 0, 0]
+        self.img_size = img_size
+        self._line_pixels = None
         if color == "red":
             self.color = [0, 0, 255]
+
+    @property
+    def line_pixels(self):
+        if self._line_pixels:
+            return self._line_pixels
+        plotx = np.linspace(0, self.img_size[1]-1, self.img_size[1])
+        min_x_box, max_x_box = min([x[0] for x in self.boxes]), max([x[2] for x in self.boxes])
+        plotx = plotx[(plotx > min_x_box) & (plotx < max_x_box)]
+        ploty = self.polynomial[0]*plotx**2 + self.polynomial[1]*plotx + self.polynomial[2]
+        ploty = ploty.astype(int)
+        plotx = plotx.astype(int)
+        out_of_bounds = [i for i, y in enumerate(ploty) if (y >= self.img_size[0]) or (y < 0.0)]
+        plotx = np.delete(plotx, out_of_bounds)
+        ploty = np.delete(ploty, out_of_bounds)
+        self._line_pixels = [plotx, ploty]
+        return [plotx, ploty]
 
     def _draw_pixels(self, img):
         img[self.pixels[0], self.pixels[1]] = self.color
@@ -23,16 +41,7 @@ class Lane:
             (box[2], box[3]),(0,255,0), 2)
 
     def _draw_polynomial(self, img):
-        plotx = np.linspace(0, img.shape[1]-1, img.shape[1])
-        min_x_box, max_x_box = min([x[0] for x in self.boxes]), max([x[2] for x in self.boxes])
-        plotx = plotx[(plotx > min_x_box) & (plotx < max_x_box)]
-        ploty = self.polynomial[0]*plotx**2 + self.polynomial[1]*plotx + self.polynomial[2]
-        ploty = ploty.astype(int)
-        plotx = plotx.astype(int)
-        out_of_bounds = [i for i, y in enumerate(ploty) if (y >= img.shape[0]) or (y < 0.0)]
-        plotx = np.delete(plotx, out_of_bounds)
-        ploty = np.delete(ploty, out_of_bounds)
-        img[ploty, plotx] = [255, 255, 255]
+        img[self.line_pixels[1], self.line_pixels[0]] = [255, 255, 255]
 
     def draw(self, img):
         self._draw_pixels(img)
@@ -165,13 +174,12 @@ class LaneSeparator:
         nonzero = img.nonzero()
         nonzeroy = np.array(nonzero[0])
         nonzerox = np.array(nonzero[1])
-        # Current positions to be updated later for each window in nwindows
+
         rightx_current = init_r_base
         leftx_current = init_l_base
         boxes_left = []
         boxes_right = []
         for slice in range(self.slices):
-            # Identify window boundaries in x and y (and right and left)
             win_y_low = img.shape[0] - (slice+1)*window_height
             win_y_high = img.shape[0] - slice*window_height
             win_xleft_low = leftx_current - self.side_range
@@ -256,17 +264,26 @@ class LaneTracer:
             print("error")
         return Lane(poli_fit, env, pixels)
 
+    def draw_road(self, img):
+        left_pts = self.past_left_lanes[0].line_pixels
+        right_pts = self.past_right_lanes[0].line_pixels
+        pts_left = np.array([np.transpose(np.vstack(left_pts))])
+        pts_right = np.array([np.flipud(np.transpose(np.vstack(right_pts)))])
+        pts = np.hstack((pts_left, pts_right))
+        cv2.fillPoly(img, np.int_([pts]), (0,255,0))
+
     def next_frame(self, img):
         bin_img = self.create_binary_mask(img)
         if True: # there is no recent lane that was detected
             self.detect_lanes(bin_img)
         else: # there is a lane
             self.trace_lanes(bin_img)
-        #self.past_left_lanes[0].draw(bin_img)
-        #self.past_right_lanes[0].draw(bin_img)
         bin_img = np.dstack([bin_img, bin_img, bin_img])
         self.past_left_lanes[0].draw(bin_img)
         self.past_right_lanes[0].draw(bin_img)
+        self.past_left_lanes[0].draw(bin_img)
+        self.past_right_lanes[0].draw(bin_img)
+        self.draw_road(bin_img)
         fin_img = self.perspective_adj.reverse(bin_img)
-        #fin_img = self.perspective_adj.apply(bin_img)
+        fin_img = cv2.addWeighted(img, 1, fin_img, 0.3, 0)
         return fin_img
