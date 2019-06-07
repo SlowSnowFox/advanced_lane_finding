@@ -39,6 +39,10 @@ class Lane:
         self._draw_boxes(img)
         self._draw_polynomial(img)
 
+    def calculate_curvature(self):
+
+        return
+
 
 class ColorFilter:
 
@@ -127,7 +131,7 @@ class PerspectiveAdjuster:
         return view_adj_img
 
     def reverse(self, img):
-        rev_adj_img = cv2.warpPerspective(img, self.t_minv, (img.shape[1], img.shape[0]), flags=cv2.INTER_LINEAR)
+        rev_adj_img = cv2.warpPerspective(img, self.t_minv, (img.shape[1], img.shape[0]))
         return rev_adj_img
 
 
@@ -198,15 +202,7 @@ class LaneSeparator:
         lefty = nonzeroy[left_lane_inds]
         rightx = nonzerox[right_lane_inds]
         righty = nonzeroy[right_lane_inds]
-
-        try:
-            left_fit = np.polyfit(leftx, lefty, 2)
-            right_fit = np.polyfit(rightx, righty, 2)
-        except:
-            # TODO Catch error and create an exception
-
-            pass
-        return Lane(left_fit, boxes_left, [lefty, leftx], color="red"), Lane(right_fit, boxes_right, [righty, rightx])
+        return boxes_left, [lefty, leftx], boxes_right, [righty, rightx]
 
     def create_hist_img(self, img, slice_nr):
         hist = self.create_hist(img, slice_nr)
@@ -228,12 +224,14 @@ class LaneTracer:
         self.gradient_filter = gradient_filter
         self.perspective_adj = perspective_adj
         self.lane_separator = lane_separator
+        self.past_left_lanes = np.array([None])
+        self.past_right_lanes = np.array([None])
 
     def trace_lanes(self, img):
+        self.past_left_lanes[0] = self.pixel_to_lane(left_lane_pixel, left_lane_boxes)
+        self.past_right_lanes[0] = self.pixel_to_lane(right_lane_pixel, right_lane_boxes)
 
-        return img
-
-    def detect_lanes(self, img):
+    def create_binary_mask(self, img):
         img = self.cam_adj.apply(img)
         canny_mask = self.gradient_filter.apply(img)
         hsl_masks = np.array([filter.apply(img) for filter in self.color_filters])
@@ -242,12 +240,33 @@ class LaneTracer:
         view_adj = self.perspective_adj.apply(comb_mask)
         return view_adj
 
-    def draw_lanes(self, img, left_lane, right_lane):
-        pass
+    def detect_lanes(self, img):
+        left_lane_boxes, left_lane_pixel, right_lane_boxes, right_lane_pixel = self.lane_separator.create_lanes(img)
+        self.past_left_lanes[0] = self.pixel_to_lane(left_lane_pixel, left_lane_boxes)
+        self.past_right_lanes[0] = self.pixel_to_lane(right_lane_pixel, right_lane_boxes)
 
-    def calculate_curvature(self, left_lane, right_lane):
-
-        return
+    def pixel_to_lane(self, pixels, env):
+        """
+        Given a number of pixels return the lane objected generated from it
+        """
+        try:
+            poli_fit = np.polyfit(pixels[1], pixels[0], 2)
+        except:
+            poli_fit = [1,1,1]
+            print("error")
+        return Lane(poli_fit, env, pixels)
 
     def next_frame(self, img):
-        find_lanes(img)
+        bin_img = self.create_binary_mask(img)
+        if True: # there is no recent lane that was detected
+            self.detect_lanes(bin_img)
+        else: # there is a lane
+            self.trace_lanes(bin_img)
+        #self.past_left_lanes[0].draw(bin_img)
+        #self.past_right_lanes[0].draw(bin_img)
+        bin_img = np.dstack([bin_img, bin_img, bin_img])
+        self.past_left_lanes[0].draw(bin_img)
+        self.past_right_lanes[0].draw(bin_img)
+        fin_img = self.perspective_adj.reverse(bin_img)
+        #fin_img = self.perspective_adj.apply(bin_img)
+        return fin_img

@@ -15,7 +15,7 @@ if __name__ == "__main__":
     ret, or_img = cap.read()
 
     src_points = np.float32([[600, 450], [270, 700], [1060, 700], [690, 450]])
-    dst_points = np.float32([[250, 0], [250,or_img.shape[1]], [1050, or_img.shape[1]], [1050, 0]])
+    dst_points = np.float32([[250, 0], [250,or_img.shape[0]], [1050, or_img.shape[0]], [1050, 0]])
     mag_values = [50, 100]
     dir_values = [0.4*np.pi/2, 0.65*np.pi/2]
     abs_values = {"x":[5, 15], "y":[5, 31]}
@@ -41,11 +41,8 @@ if __name__ == "__main__":
         elif k == 115: # (s)
             cv2.imwrite("../data/sample_step_outputs/b_trans.jpg", mod_img)
 
-        lane_mask = lt.detect_lanes(or_img)
-        final_mask = np.dstack([lane_mask, lane_mask, lane_mask])
-        lf, lr = lane_sep.create_lanes(lane_mask)
-        lr.draw(final_mask)
-        lf.draw(final_mask)
-        persp_img = perpserctive_adj.apply(or_img)
-        comb_img = combine_images(or_img, lane_mask, final_mask, persp_img)
+        applied_frame = lt.next_frame(or_img)
+        blub = perpserctive_adj.apply(or_img)
+        fblub = perpserctive_adj.reverse(blub)
+        comb_img = combine_images(or_img, fblub, applied_frame, or_img)
         cv2.imshow("blub", comb_img)
