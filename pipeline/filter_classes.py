@@ -37,9 +37,12 @@ class Lane:
         img[self.pixels[0], self.pixels[1]] = self.color
 
     def _draw_env(self, img):
-        for box in self.env:
-            cv2.rectangle(img,(box[0], box[1]),
-            (box[2], box[3]),(0,255,0), 2)
+        if type(self.env) is list: # Lane was created by Seperator
+            for box in self.env:
+                cv2.rectangle(img,(box[0], box[1]),
+                (box[2], box[3]),(0,255,0), 2)
+        else: # Lane was created by Tracer TODO make prettier
+            img[self.env[0], self.env[1]] = [0, 255, 0]
 
     def _draw_polynomial(self, img):
         img[self.line_pixels[1], self.line_pixels[0]] = [255, 255, 255]
@@ -91,7 +94,7 @@ class GradientFilter:
         abs_x_img = self._apply_abs_thresh(img)
         abs_y_img = self._apply_abs_thresh(img, orient='y')
         comb_1 = np.zeros_like(dir_img)
-        comb_1[(dir_img == 1) & (mag_img == 1)] = 255
+        comb_1[(dir_img == 1) | (mag_img == 1)] = 255
         comb_2 = np.zeros_like(dir_img)
         comb_2[(abs_x_img == 1) & (abs_y_img == 1)] = 255
         comb_3 = comb_2 & comb_1
