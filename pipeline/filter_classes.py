@@ -6,13 +6,16 @@ import matplotlib.pyplot as plt
 
 class Lane:
 
-    def __init__(self, polynomial, boxes, pixels, color="blue", img_size=(720, 1280)):
+    def __init__(self, polynomial, pixels, env, color="blue", img_size=(720, 1280)):
         self.polynomial = polynomial
-        self.boxes = boxes
+        self.env = env
         self.pixels = pixels
         self.color = [255, 0, 0]
         self.img_size = img_size
         self._line_pixels = None
+        self._curvature = None
+        self.x_mpx = 3.7 / 800
+        self.y_mpx = 30 / img_size[0]
         if color == "red":
             self.color = [0, 0, 255]
 
@@ -20,13 +23,11 @@ class Lane:
     def line_pixels(self):
         if self._line_pixels:
             return self._line_pixels
-        plotx = np.linspace(0, self.img_size[1]-1, self.img_size[1])
-        min_x_box, max_x_box = min([x[0] for x in self.boxes]), max([x[2] for x in self.boxes])
-        plotx = plotx[(plotx > min_x_box) & (plotx < max_x_box)]
-        ploty = self.polynomial[0]*plotx**2 + self.polynomial[1]*plotx + self.polynomial[2]
+        ploty = np.linspace(0, self.img_size[0]-1, self.img_size[0])
+        plotx = self.polynomial[0]*ploty**2 + self.polynomial[1]*ploty + self.polynomial[2]
         ploty = ploty.astype(int)
         plotx = plotx.astype(int)
-        out_of_bounds = [i for i, y in enumerate(ploty) if (y >= self.img_size[0]) or (y < 0.0)]
+        out_of_bounds = [i for i, y in enumerate(plotx) if (y >= self.img_size[1]) or (y < 0.0)]
         plotx = np.delete(plotx, out_of_bounds)
         ploty = np.delete(ploty, out_of_bounds)
         self._line_pixels = [plotx, ploty]
@@ -35,8 +36,8 @@ class Lane:
     def _draw_pixels(self, img):
         img[self.pixels[0], self.pixels[1]] = self.color
 
-    def _draw_boxes(self, img):
-        for box in self.boxes:
+    def _draw_env(self, img):
+        for box in self.env:
             cv2.rectangle(img,(box[0], box[1]),
             (box[2], box[3]),(0,255,0), 2)
 
@@ -45,12 +46,20 @@ class Lane:
 
     def draw(self, img):
         self._draw_pixels(img)
-        self._draw_boxes(img)
+        self._draw_env(img)
         self._draw_polynomial(img)
 
-    def calculate_curvature(self):
-
-        return
+    @property
+    def curvature(self):
+        if self._curvature:
+            return self._curvature
+        # convert parabel parameters from pixel into meter space
+        # x= mx / (my ** 2) *a*(y**2)+(mx/my)*b*y+c
+        pol_factor_0 = self.x_mpx / (self.y_mpx ** 2) * self.polynomial[0]
+        pol_factor_1 = (self.x_mpx/self.y_mpx) * self.polynomial[1]
+        curvature = ((1 + (2*pol_factor_0*self.img_size[0] + pol_factor_1)**2)**1.5) / np.absolute(2*pol_factor_0)
+        self._curvature = curvature
+        return curvature
 
 
 class ColorFilter:
@@ -226,7 +235,7 @@ class LaneSeparator:
 
 class LaneTracer:
 
-    def __init__(self, cam_adj, color_filters, gradient_filter, perspective_adj, lane_separator):
+    def __init__(self, cam_adj, color_filters, gradient_filter, perspective_adj, lane_separator, trace_margin=100, font=cv2.FONT_HERSHEY_SIMPLEX):
         self.cam_adj = cam_adj
         self.color_filters = color_filters
         self.gradient_filter = gradient_filter
@@ -234,10 +243,30 @@ class LaneTracer:
         self.lane_separator = lane_separator
         self.past_left_lanes = np.array([None])
         self.past_right_lanes = np.array([None])
+        self.trace_margin = trace_margin
+        self.font = font
 
     def trace_lanes(self, img):
-        self.past_left_lanes[0] = self.pixel_to_lane(left_lane_pixel, left_lane_boxes)
-        self.past_right_lanes[0] = self.pixel_to_lane(right_lane_pixel, right_lane_boxes)
+        nonzero = img.nonzero()
+        nonzeroy = np.array(nonzero[0])
+        nonzerox = np.array(nonzero[1])
+        left_fit = self.past_left_lanes[0].polynomial
+        right_fit = self.past_right_lanes[0].polynomial
+        left_lane_inds = ((nonzerox > (left_fit[0]*(nonzeroy**2) + left_fit[1]*nonzeroy +
+                        left_fit[2] - self.trace_margin)) & (nonzerox < (left_fit[0]*(nonzeroy**2) +
+                        left_fit[1]*nonzeroy + left_fit[2] + self.trace_margin)))
+        right_lane_inds = ((nonzerox > (right_fit[0]*(nonzeroy**2) + right_fit[1]*nonzeroy +
+                        right_fit[2] - self.trace_margin)) & (nonzerox < (right_fit[0]*(nonzeroy**2) +
+                        right_fit[1]*nonzeroy + right_fit[2] + self.trace_margin)))
+
+        leftx = nonzerox[left_lane_inds]
+        lefty = nonzeroy[left_lane_inds]
+        rightx = nonzerox[right_lane_inds]
+        righty = nonzeroy[right_lane_inds]
+        left_lane_pixel = [lefty, leftx]
+        right_lane_pixel = [righty, rightx]
+        self.past_left_lanes[0] = self.pixel_to_lane(left_lane_pixel, [])
+        self.past_right_lanes[0] = self.pixel_to_lane(right_lane_pixel, [])
 
     def create_binary_mask(self, img):
         img = self.cam_adj.apply(img)
@@ -254,15 +283,31 @@ class LaneTracer:
         self.past_right_lanes[0] = self.pixel_to_lane(right_lane_pixel, right_lane_boxes)
 
     def pixel_to_lane(self, pixels, env):
-        """
-        Given a number of pixels return the lane objected generated from it
-        """
         try:
-            poli_fit = np.polyfit(pixels[1], pixels[0], 2)
-        except:
-            poli_fit = [1,1,1]
-            print("error")
-        return Lane(poli_fit, env, pixels)
+            poli_fit = np.polyfit(pixels[0], pixels[1], 2)
+        except: # no fit was found thats why a straight line is predicted
+            poli_fit = [0,1,1]
+        return Lane(poli_fit, pixels, env)
+
+    def calculate_offset(self):
+        midpoint_img = 1280/2
+        midpoint_lane = (min(self.past_left_lanes[0].line_pixels[0]) + max(self.past_right_lanes[0].line_pixels[0]))/2
+        diff = midpoint_img-midpoint_lane
+        diff = diff * (3.7/800)# convert to meters
+        return diff
+
+    def calculate_curvature(self):
+        left = self.past_left_lanes[0].curvature
+        right = self.past_right_lanes[0].curvature
+        return (left+right) / 2
+
+    def sanity_check(self):
+        """
+        checks if the most recently line was valid
+        """
+        if not self.past_left_lanes[0]:
+            return False
+        return True
 
     def draw_road(self, img):
         left_pts = self.past_left_lanes[0].line_pixels
@@ -274,16 +319,18 @@ class LaneTracer:
 
     def next_frame(self, img):
         bin_img = self.create_binary_mask(img)
-        if True: # there is no recent lane that was detected
+        if not self.sanity_check():
             self.detect_lanes(bin_img)
         else: # there is a lane
             self.trace_lanes(bin_img)
         bin_img = np.dstack([bin_img, bin_img, bin_img])
         self.past_left_lanes[0].draw(bin_img)
         self.past_right_lanes[0].draw(bin_img)
-        self.past_left_lanes[0].draw(bin_img)
-        self.past_right_lanes[0].draw(bin_img)
         self.draw_road(bin_img)
         fin_img = self.perspective_adj.reverse(bin_img)
         fin_img = cv2.addWeighted(img, 1, fin_img, 0.3, 0)
+        curv_text = "curvature: " + str(int(self.calculate_curvature()))
+        offset_text = "offset: " + str(self.calculate_offset())[:4] + " meters"
+        cv2.putText(fin_img,curv_text,(10,50), self.font, 1,(255,255,255),2,cv2.LINE_AA)
+        cv2.putText(fin_img,offset_text, (10,100), self.font, 1, (255,255,255),2,cv2.LINE_AA )
         return fin_img

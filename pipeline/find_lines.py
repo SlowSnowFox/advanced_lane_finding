@@ -19,7 +19,7 @@ if __name__ == "__main__":
     mag_values = [50, 100]
     dir_values = [0.4*np.pi/2, 0.65*np.pi/2]
     abs_values = {"x":[5, 15], "y":[5, 31]}
-    hsl_lower_bounds_y = np.array([20, 160, 80])
+    hsl_lower_bounds_y = np.array([20, 120, 80])
     hsl_upper_bounds_y = np.array([45, 255, 170])
     hsl_lower_bounds_w = np.array([0, 170,0])
     hsl_upper_bounds_w = np.array([180, 255, 255])
@@ -29,7 +29,7 @@ if __name__ == "__main__":
     gradient_filter = GradientFilter(abs_values, mag_values, dir_values, sobel_kernel=9)
     cam_adj = CamerAdjuster(cam_conf_path)
     perpserctive_adj = PerspectiveAdjuster(src_points, dst_points)
-    lane_sep = LaneSeparator()
+    lane_sep = LaneSeparator(side_range=150)
     lt = LaneTracer(cam_adj, color_filters, gradient_filter, perpserctive_adj, lane_sep)
 
     while True:
@@ -37,6 +37,9 @@ if __name__ == "__main__":
         if k == 27:
             break
         elif k == 110: # (n)
+            ret, or_img = cap.read()
+            ret, or_img = cap.read()
+            ret, or_img = cap.read()
             ret, or_img = cap.read()
         elif k == 115: # (s)
             cv2.imwrite("../data/sample_step_outputs/b_trans.jpg", mod_img)
