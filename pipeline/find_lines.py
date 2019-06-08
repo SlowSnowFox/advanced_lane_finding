@@ -5,6 +5,7 @@ from collections import deque
 import cv2
 from helper_functions import *
 from filter_classes import *
+from moviepy.editor import VideoFileClip
 
 
 if __name__ == "__main__":
@@ -31,21 +32,18 @@ if __name__ == "__main__":
     perpserctive_adj = PerspectiveAdjuster(src_points, dst_points)
     lane_sep = LaneSeparator(side_range=100)
     lt = LaneTracer(cam_adj, color_filters, gradient_filter, perpserctive_adj, lane_sep)
-
     while True:
         k = cv2.waitKey(1) & 0xFF # (ESC)
         if k == 27:
             break
         elif k == 110: # (n)
             ret, or_img = cap.read()
-            ret, or_img = cap.read()
-            ret, or_img = cap.read()
-            ret, or_img = cap.read()
         elif k == 115: # (s)
             cv2.imwrite("../data/output_images/sf.jpg", mod_img)
 
         applied_frame = lt.next_frame(or_img)
-        blub = perpserctive_adj.apply(or_img)
-        fblub = perpserctive_adj.reverse(blub)
-        comb_img = combine_images(or_img, fblub, applied_frame, or_img)
+        comb_img = combine_images(or_img, or_img, applied_frame, or_img)
         cv2.imshow("blub", comb_img)
+
+cap.release()
+cv2.destroyAllWindows()

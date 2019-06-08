@@ -11,26 +11,24 @@
 [img3]: ./data/output_images/filter_sample.jpg
 [img4]: ./data/output_images/persp_adj_sample_bin.jpg
 [img5]: ./data/output_images/persp_adj_sample_or.jpg
-[img6]: ./data/output_images/histogram_example.jpg
+[img6]: ./data/output_images/histogram_example.png
 [img7]: ./data/output_images/Lane_Detector_sample.jpg
 [img8]: ./data/output_images/Lane_tracer_sample.jpg
 [img9]: ./data/output_images/complete_pipeline_sample.jpg
-[video1]: ./project_video.mp4 "Video"
+[video1]: ./data/video_result.mp4 "Video"
 
 
 ---
-## Overview
-
 
 
 ### Camera Calibration
 
 The camera matrix was calculated using the well know chess board reference.
-A series of images of a chessboard was provided. Because all of the squares share a common z plane and we know the distances between the squares its relatively easy to compute the matrix by using cv2.calibrateCamera and cv2.findChessboardCornersS.
-The computed Matrix is then saved and used as the first step in the pipeline.
-The code for generating the Matrix can be found under camera_calibration.
+A series of images of a chessboard was provided. Because all of the squares share a common z plane and we know the distances between the squares its relatively easy to compute the matrix by using cv2.calibrateCamera and cv2.findChessboardCorners.
+The computed matrix is then saved and used as the first step in the pipeline.
+The code for generating the matrix can be found under camera_calibration.
 The code for actually applying the distortion correction can be found under
-pipeline/filter_classes class CamerAdjuster
+pipeline/filter_classes class `CamerAdjuster`
 Below is an example of the step.
 <br>
 
@@ -43,8 +41,7 @@ Distortion Corrected image:
 #### 2. Thresholding
 
 I used a combination of color and gradient thresholds to generate a binary image.
-Because the lane colors could either be white or yellow I first converted them into
-HSL colorspace to make the filters more robust. In addition to this I also used a combination of gradient based filters. You can see the exakt composition I ended up using in pipeline/filter_classes class Lane_Detector.
+Because the lane colors can vary under differnt light conditions I first converted them into HSL colorspace to make the filters more robust. In addition to this I also used a combination of gradient based filters. You can see the exakt composition I ended up using in pipeline/filter_classes class Lane_Detector.
 Here is a combined image of the various filters and the resulting binary img.
 ![alt text][img3]
 
@@ -52,7 +49,7 @@ Here is a combined image of the various filters and the resulting binary img.
 I first experimented with different source and destination points before I ended up with the points that can be found under pipeline/find_lines.py.
 The experimentation setup can be found under parameter_adjustment check_perspective_transform.py
 I then used these fixed points to do the perspective transform in the pipeline(the class is PerspectiveAdjuster in pipeline/filter_classes)
-Here are 2 example images. One used on the binary mask and the second one used on the original image.
+Here are 2 example images. One used on the binary mask and the second one was used on the original image.
 ![alt text][img4]
 ![alt text][img5]
 
@@ -61,6 +58,7 @@ Here are 2 example images. One used on the binary mask and the second one used o
 To identify the pixels that belong to the respective lanes I used 2 different approaches:
 
 1. Without prior knowledge (Code can be found in the LaneSeparator class)
+<br>
 First I created a histogram along the x-axis which resulted in the following image:
 ![alt text][img6]
 
@@ -70,6 +68,7 @@ Doing this until we cover the entire image results into an image like this:
 ![alt text][img7]
 
 2. With prior knowledge (Code can be found in the trace_lanes function of the LaneTracer class)
+<br>
 Knowing where the last lane polynomial was we can simply  create a boundary around the old position and classify the pixels that are within the boundary as
 belonging to the lane.
 The resulting image looks like this:
@@ -82,7 +81,7 @@ The fitting is done in the function pixel_to_lane in the LaneTracer class.
 
 #### 5. Describe how (and identify where in your code) you calculated the radius of curvature of the lane and the position of the vehicle with respect to center.
 
-The curvature was calculated using a simple . This was done in the Lane class in calculate_curvature.
+The curvature was calculated using the formula given [here](https://www.intmath.com/applications-differentiation/8-radius-curvature.php) . This was done in the Lane class in calculate_curvature.
 The final curvature is the average of the left and the right lane.
 
 #### 6. Provide an example image of your result plotted back down onto the road such that the lane area is identified clearly.
