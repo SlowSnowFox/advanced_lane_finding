@@ -15,6 +15,7 @@
 [img7]: ./data/output_images/Lane_Detector_sample.jpg
 [img8]: ./data/output_images/Lane_tracer_sample.jpg
 [img9]: ./data/output_images/complete_pipeline_sample.jpg
+[img10]: ./data/output_images/distortion_correction_chessboard.jpg
 [video1]: ./data/video_result.mp4 "Video"
 
 
@@ -37,6 +38,9 @@ Original Image:
 
 Distortion Corrected image:
 ![alt text][img1]
+
+here is another example done on the chessboard:
+![alt text][img10]
 
 #### 2. Thresholding
 

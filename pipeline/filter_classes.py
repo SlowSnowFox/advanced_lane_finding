@@ -21,7 +21,7 @@ class Lane:
 
     @property
     def line_pixels(self):
-        if self._line_pixels:
+        if self._line_pixels != None:
             return self._line_pixels
         ploty = np.linspace(0, self.img_size[0]-1, self.img_size[0])
         plotx = self.polynomial[0]*ploty**2 + self.polynomial[1]*ploty + self.polynomial[2]
@@ -30,8 +30,8 @@ class Lane:
         out_of_bounds = [i for i, y in enumerate(plotx) if (y >= self.img_size[1]) or (y < 0.0)]
         plotx = np.delete(plotx, out_of_bounds)
         ploty = np.delete(ploty, out_of_bounds)
-        self._line_pixels = [plotx, ploty]
-        return [plotx, ploty]
+        self._line_pixels = np.array([plotx, ploty])
+        return np.array([plotx, ploty])
 
     def _draw_pixels(self, img):
         img[self.pixels[0], self.pixels[1]] = self.color
@@ -60,19 +60,21 @@ class Lane:
         # x= mx / (my ** 2) *a*(y**2)+(mx/my)*b*y+c
         pol_factor_0 = self.x_mpx / (self.y_mpx ** 2) * self.polynomial[0]
         pol_factor_1 = (self.x_mpx/self.y_mpx) * self.polynomial[1]
-        curvature = ((1 + (2*pol_factor_0*self.img_size[0] + pol_factor_1)**2)**1.5) / np.absolute(2*pol_factor_0)
+        img_size_meters = self.img_size[0] * self.y_mpx
+        curvature = ((1 + (2*pol_factor_0*img_size_meters + pol_factor_1)**2)**1.5) / np.absolute(2*pol_factor_0)
         self._curvature = curvature
         return curvature
 
 
 class ColorFilter:
 
-    def __init__(self, lower_bounds, upper_bounds):
+    def __init__(self, lower_bounds, upper_bounds, cspace=cv2.COLOR_BGR2HLS):
         self.lower_bounds = lower_bounds
         self.upper_bounds = upper_bounds
+        self.cspace = cspace
 
     def apply(self, img):
-        c_img = cv2.cvtColor(img, cv2.COLOR_BGR2HLS)
+        c_img = cv2.cvtColor(img, self.cspace)
         r_img = cv2.inRange(c_img, self.lower_bounds, self.upper_bounds)
         return r_img
 
@@ -94,7 +96,7 @@ class GradientFilter:
         abs_x_img = self._apply_abs_thresh(img)
         abs_y_img = self._apply_abs_thresh(img, orient='y')
         comb_1 = np.zeros_like(dir_img)
-        comb_1[(dir_img == 1) | (mag_img == 1)] = 255
+        comb_1[(dir_img == 1) & (mag_img == 1)] = 255
         comb_2 = np.zeros_like(dir_img)
         comb_2[(abs_x_img == 1) & (abs_y_img == 1)] = 255
         comb_3 = comb_2 & comb_1
@@ -272,7 +274,6 @@ class LaneTracer:
         self.past_right_lanes[0] = self.pixel_to_lane(right_lane_pixel, [])
 
     def create_binary_mask(self, img):
-        img = self.cam_adj.apply(img)
         canny_mask = self.gradient_filter.apply(img)
         hsl_masks = np.array([filter.apply(img) for filter in self.color_filters])
         hsl_mask = np.amax(hsl_masks, axis=0)
@@ -294,15 +295,24 @@ class LaneTracer:
 
     def calculate_offset(self):
         midpoint_img = 1280/2
-        midpoint_lane = (min(self.past_left_lanes[0].line_pixels[0]) + max(self.past_right_lanes[0].line_pixels[0]))/2
-        diff = midpoint_img-midpoint_lane
+        l_pixels = self.past_left_lanes[0].line_pixels
+        r_pixels = self.past_right_lanes[0].line_pixels
+        lower_part_img_l = l_pixels[0][l_pixels[1] > 600]
+        lower_part_img_r = r_pixels[0][r_pixels[1] > 600]
+        #print(l_pixels)
+        #print(lower_part_img_r.shape)
+        midpoint_lane = (lower_part_img_l.mean() + lower_part_img_r.mean())/2
+        diff = -midpoint_img+midpoint_lane
         diff = diff * (3.7/800)# convert to meters
         return diff
 
     def calculate_curvature(self):
         left = self.past_left_lanes[0].curvature
         right = self.past_right_lanes[0].curvature
-        return (left+right) / 2
+        combined = (left+right) / 2
+        if combined > 10000:
+            return "Straight Lane"
+        return str(int(combined))
 
     def sanity_check(self):
         """
@@ -310,6 +320,8 @@ class LaneTracer:
         """
         if not self.past_left_lanes[0]:
             return False
+        elif False:
+            pass
         return True
 
     def draw_road(self, img):
@@ -321,6 +333,7 @@ class LaneTracer:
         cv2.fillPoly(img, np.int_([pts]), (0,255,0))
 
     def next_frame(self, img):
+        img = self.cam_adj.apply(img)
         bin_img = self.create_binary_mask(img)
         if not self.sanity_check():
             self.detect_lanes(bin_img)
@@ -332,7 +345,7 @@ class LaneTracer:
         self.draw_road(bin_img)
         fin_img = self.perspective_adj.reverse(bin_img)
         fin_img = cv2.addWeighted(img, 1, fin_img, 0.3, 0)
-        curv_text = "curvature: " + str(int(self.calculate_curvature()))
+        curv_text = "curvature: " + self.calculate_curvature()
         offset_text = "offset: " + str(self.calculate_offset())[:4] + " meters"
         cv2.putText(fin_img,curv_text,(10,50), self.font, 1,(255,255,255),2,cv2.LINE_AA)
         cv2.putText(fin_img,offset_text, (10,100), self.font, 1, (255,255,255),2,cv2.LINE_AA )
